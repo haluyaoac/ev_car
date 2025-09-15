@@ -1,0 +1,91 @@
+<!-- templates/result.html -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>路线规划结果</title>
+  <style>
+    html, body, #map { height: 100%; margin: 0; }
+    .label { background: rgba(0,0,0,0.6); color:#fff; padding:2px 6px; border-radius: 4px; }
+    .info { position:absolute; top:10px; left:10px; background:#fff; padding:10px; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,.15); }
+  </style>
+  <script src="https://api.map.baidu.com/api?v=1.0&type=webgl&ak={{ ak }}"></script>
+</head>
+<body>
+  <div class="info">
+    <div><b>起点:</b> {{ start_name }} | <b>终点:</b> {{ end_name }}</div>
+    {% if plan_res %}
+      <div><b>总时长:</b> {{ "%.2f"|format(plan_res.total_time_min) }} 分钟</div>
+    {% endif %}
+  </div>
+  <div id="map"></div>
+
+  <script>
+    const map = new BMapGL.Map('map');
+    map.enableScrollWheelZoom(true);
+
+    const stations = {{ stations|tojson }};
+    const routePoints = {{ route_points|tojson }};
+    const polylines = {{ polylines|tojson }};
+
+    function toPoint(lat, lng) { return new BMapGL.Point(lng, lat); }
+
+    // 定位视野：以路线点和站点的包围盒
+    (function fitView(){
+      const pts = [];
+      stations.forEach(s => pts.push(toPoint(s.lat, s.lng)));
+      routePoints.forEach(p => pts.push(toPoint(p.lat, p.lng)));
+      if (pts.length) {
+        const view = map.getViewport(pts);
+        map.centerAndZoom(view.center, view.zoom);
+      } else {
+        map.centerAndZoom(new BMapGL.Point(117.200, 39.133), 12); // 天津兜底
+      }
+    })();
+
+    // 标记起终点
+    if (routePoints.length) {
+      const start = routePoints[0];
+      const end = routePoints[routePoints.length - 1];
+      const startMarker = new BMapGL.Marker(toPoint(start.lat, start.lng));
+      const endMarker = new BMapGL.Marker(toPoint(end.lat, end.lng));
+      startMarker.setTitle("起点: " + (start.name || ""));
+      endMarker.setTitle("终点: " + (end.name || ""));
+      map.addOverlay(startMarker);
+      map.addOverlay(endMarker);
+    }
+
+    // 站点标记（含名称）
+    stations.forEach(s => {
+      const marker = new BMapGL.Marker(toPoint(s.lat, s.lng));
+      marker.setTitle(s.name || "");
+      map.addOverlay(marker);
+      const label = new BMapGL.Label(s.name || "", { position: toPoint(s.lat, s.lng), offset: new BMapGL.Size(10, -20) });
+      label.setStyle({ color:"#333", backgroundColor:"#fff", border:"1px solid #999", padding:"2px 6px", borderRadius:"4px" });
+      map.addOverlay(label);
+    });
+
+    // 路线绘制（每一段一个 Polyline）
+    polylines.forEach((seg, idx) => {
+      const path = seg.map(([lat, lng]) => toPoint(lat, lng));
+      const color = "#2A73FF";
+      const line = new BMapGL.Polyline(path, {
+        strokeColor: color,
+        strokeWeight: 6,
+        strokeOpacity: 0.9
+      });
+      map.addOverlay(line);
+    });
+
+    // 在每个路径节点标注 SOC
+    routePoints.forEach(p => {
+      const lbl = new BMapGL.Label((p.soc != null ? `SOC ${p.soc}%` : (p.name || "")), {
+        position: toPoint(p.lat, p.lng),
+        offset: new BMapGL.Size(8, -28)
+      });
+      lbl.setStyle({ color:"#fff", backgroundColor:"rgba(0,0,0,.6)", border:"0", padding:"2px 6px", borderRadius:"4px", fontSize:"12px" });
+      map.addOverlay(lbl);
+    });
+  </script>
+</body>
+</html>
