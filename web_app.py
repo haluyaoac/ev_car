@@ -7,6 +7,7 @@ import path_planner
 from utils import geodesic_distance, haversine_km, midpoint, polyline_sample
 from db import session as db_session
 from db import crud as db_crud
+from baidu_api import get_route_polyline  # 你自己封装的API调用函数
 
 app = Flask(__name__, static_folder="static", template_folder="templates")
 logging.basicConfig(level=logging.INFO)
@@ -173,7 +174,6 @@ def plan():
             #坐标点
     print(f"总耗时: {res['total_time_min']:.2f} 分钟")
 
-    from baidu_api import get_route_polyline  # 你自己封装的API调用函数
 
     full_polyline = []
 
@@ -192,11 +192,11 @@ def plan():
             f.write(f"{p[0]},{p[1]}\n")
 
     return render_template(
-    "result.html",
-    polyline=full_polyline,
-    nodes=nodes,   # 加上这一行
-    ak=AK
-)
+        "result.html",
+        polyline=full_polyline,
+        nodes=nodes,   # 加上这一行
+        ak=AK
+    )
 
 
 
