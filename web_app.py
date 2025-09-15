@@ -70,7 +70,7 @@ def plan():
     else:
     #从text文件读取充电站
         stations = []
-        with open("stations_circle.txt", "r", encoding="utf-8") as f:
+        with open("text\\stations_circle.txt", "r", encoding="utf-8") as f:
             for line in f:
                 parts = line.strip().split(",")
                 if len(parts) >= 4:
@@ -116,7 +116,7 @@ def plan():
         else :
             #从文件读取边权
             nodes = []
-            with open("stations_circle.txt", "r", encoding="utf-8") as f:
+            with open("text\\stations_circle.txt", "r", encoding="utf-8") as f:
                 for line in f:
                     parts = line.strip().split(",")
                     if len(parts) >= 4:
@@ -129,7 +129,7 @@ def plan():
             nodes.insert(0, {"name": "起点", "lat": start_coord[0], "lng": start_coord[1], "address": origin})
             nodes.append({"name": "终点", "lat": end_coord[0], "lng": end_coord[1], "address": destination})
             adj = {i: [] for i in range(len(nodes))}
-            with open("graph_edges.txt", "r", encoding="utf-8") as f:
+            with open("text\\graph_edges.txt", "r", encoding="utf-8") as f:
                 for line in f:
                     if "->" in line:
                         parts = line.split("->")
@@ -172,15 +172,6 @@ def plan():
             print(f"  {nodes[idx]['name']} (SOC={soc}%) -> {action} {points[idx]}")
             #坐标点
     print(f"总耗时: {res['total_time_min']:.2f} 分钟")
-
-    routes = []
-    #调用api,获取具体路径信息
-    coords = [(p["lat"], p["lng"]) for p in route_points]
-    for i in range(len(coords)-1):
-        segment = baidu_api.get_route_polyline(coords[i], coords[i+1], AK)
-        if segment:
-            routes.extend(segment)
-
 
     from baidu_api import get_route_polyline  # 你自己封装的API调用函数
 
