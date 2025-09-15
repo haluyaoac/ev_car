@@ -24,9 +24,9 @@
     const map = new BMapGL.Map('map');
     map.enableScrollWheelZoom(true);
 
-    const stations = {{ stations|tojson }};
-    const routePoints = {{ route_points|tojson }};
-    const polylines = {{ polylines|tojson }};
+    const stations = JSON.parse('{{ stations|tojson|escapejs }}');
+    const routePoints = JSON.parse('{{ route_points|tojson|escapejs }}');
+    const polylines = JSON.parse('{{ polylines|tojson|escapejs }}');
 
     function toPoint(lat, lng) { return new BMapGL.Point(lng, lat); }
 
