@@ -186,9 +186,18 @@ def plan():
             if full_polyline and full_polyline[-1] == seg_polyline[0]:
                 seg_polyline = seg_polyline[1:]
             full_polyline.extend(seg_polyline)
+    #保存路径点
+    with open("text\\route_points.txt", "w", encoding="utf-8") as f:
+        for p in full_polyline:
+            f.write(f"{p[0]},{p[1]}\n")
 
-    # 把 full_polyline 传给模板
-    return render_template("result.html", polyline=full_polyline, ak=AK)
+    return render_template(
+    "result.html",
+    polyline=full_polyline,
+    nodes=nodes,   # 加上这一行
+    ak=AK
+)
+
 
 
 if __name__ == "__main__":
