@@ -65,7 +65,18 @@ def geocode(address, ak) -> Optional[Coord]:
     print(f"[Geocode] 失败: {data.get('msg', data)}")
     return None
 
-def get_route_polyline(start: Coord, end: Coord, ak: str) -> Tuple[Optional[List[Coord]], List[int], List[int], List[str]]:
+from typing import Optional, List, Tuple, Dict, Any
+
+Coord = Tuple[float, float]  # (lat, lng)
+
+def get_route_polyline(
+    start: Coord,
+    end: Coord,
+    ak: str
+) -> Optional[Dict[str, Any]]:
+    """
+    调用百度驾车路线 API，返回包含路线 polyline 及附加信息的字典。
+    """
     ensure_dispatcher_started()
     params = {
         "origin": _fmt_coord_bd09(*start),
@@ -73,33 +84,52 @@ def get_route_polyline(start: Coord, end: Coord, ak: str) -> Tuple[Optional[List
         "ak": ak,
     }
     data = fetch_json(DRIVE_URL, params, retries=3, timeout_s=18)
+
+    # 顶层状态检查
     if data.get("status") != 0:
-        print("[Baidu] 路线请求失败:", data.get("message", data))
+        print(f"[Baidu] 路线请求失败: {data.get('message', data)}")
         return None
-    # ...existing code... (解析 steps 保留原逻辑)
-    # 复制你现有的解析段落
-    routes = data.get("result", {}).get("routes", [])
+
+    result = data.get("result", {})
+    routes = result.get("routes", [])
     if not routes:
         print("[Baidu] 未返回 routes")
         return None
-    steps = routes[0].get("steps", [])
+
+    # 取第一条方案
+    route = routes[0]
+
+
+    # polyline 解析
+    steps = route.get("steps", [])
     poly: List[Coord] = []
     poly_start: List[int] = []
     poly_end: List[int] = []
     poly_name: List[str] = []
+
     for seg in steps:
-        poly_name.append(seg.get("road_name",""))
+        road_name = seg.get("road_name", "")
+        poly_name.append(road_name)
         path_str = seg.get("path")
-        if not path_str: continue
+        if not path_str:
+            continue
         poly_start.append(len(poly))
         for pair in path_str.split(';'):
             try:
                 lng, lat = map(float, pair.split(','))
                 poly.append((lat, lng))
-            except:
+            except ValueError:
                 continue
-        poly_end.append(len(poly)-1)
-    return poly, poly_start, poly_end, poly_name
+        poly_end.append(len(poly) - 1)
+
+    return {
+        "polyline": poly,
+        "poly_start": poly_start,
+        "poly_end": poly_end,
+        "poly_name": poly_name,
+        "raw": data  # 保留原始数据，方便调试或扩展
+    }
+
 
 
 def search_stations_by_circle(query, center, radius_m, ak) -> List[dict]:
@@ -182,5 +212,8 @@ def get_distance_matrix(origins: List[Coord], destinations: List[Coord], ak: str
         matrix.append(row_values)
     return matrix
 
+
+def search_stations_along_route():
+    
 
 

@@ -35,13 +35,15 @@
     <!-- 用 data-* 存储 Jinja2 渲染的数据 -->
     <div id="data"
          data-polyline='{{ polyline|tojson|safe }}'
-         data-stations='{{ nodes|tojson|safe }}'></div>
+         data-stations='{{ stations|tojson|safe }}'
+         data-nodes='{{ nodes|tojson|safe }}'></div>
 
     <script>
         // 从隐藏 div 中取出 JSON 数据
         var container = document.getElementById("data");
         var polylinePoints = JSON.parse(container.dataset.polyline);
         var stations = JSON.parse(container.dataset.stations);
+        var nodes = JSON.parse(container.dataset.nodes);
 
         // 创建地图（BMapGL）
         var map = new BMapGL.Map("map");
@@ -95,7 +97,7 @@
 
         // 左侧路线面板
         var routeList = document.getElementById("route-list");
-        polylinePoints.forEach(function (p, idx) {
+        nodes.forEach(function (p, idx) {
             var li = document.createElement("li");
             li.innerText = "第 " + (idx + 1) + " 点: (" + p[0].toFixed(6) + ", " + p[1].toFixed(6) + ")";
             routeList.appendChild(li);

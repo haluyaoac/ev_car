@@ -4,7 +4,8 @@ from config import USE_BAIDU_POI, USE_BAIDU_DIS, AK, CAR, USE_SPARSIFICATION, SP
 import baidu_api
 import graph_builder
 import path_planner
-from utils import geodesic_distance, haversine_km, midpoint, polyline_sample
+from utils import geodesic_distance, haversine_km, midpoint, polyline_sample, Coord
+from typing import List
 from db import session as db_session
 from db import crud as db_crud
 from baidu_api import get_route_polyline  # 你自己封装的API调用函数
@@ -177,28 +178,72 @@ def plan():
     print(f"总耗时: {res['total_time_min']:.2f} 分钟")
 
 
-    full_polyline = []
+    full_polyline: List[Coord] = []
+    all_segments_info: List[dict] = []
 
     for i in range(len(route_points) - 1):
         start = (route_points[i]["lat"], route_points[i]["lng"])
-        end = (route_points[i+1]["lat"], route_points[i+1]["lng"])
-        seg_polyline = get_route_polyline(start, end, ak=AK)
-        if seg_polyline:
-            # 避免重复首点
-            if full_polyline and full_polyline[-1] == seg_polyline[0]:
-                seg_polyline = seg_polyline[1:]
-            full_polyline.extend(seg_polyline)
-    #保存路径点
+        end = (route_points[i + 1]["lat"], route_points[i + 1]["lng"])
+
+        route_data = get_route_polyline(start, end, ak=AK)
+        if not route_data:
+            print(f"[Warning] 第 {i+1} 段路线获取失败: {start} -> {end}")
+            continue
+
+        seg_polyline = route_data["polyline"]
+
+        # 避免重复首点
+        if full_polyline and seg_polyline and full_polyline[-1] == seg_polyline[0]:
+            seg_polyline = seg_polyline[1:]
+
+        full_polyline.extend(seg_polyline)
+        all_segments_info.append(route_data)
+
+    # 保存合并后的路径点
     with open("text\\route_points.txt", "w", encoding="utf-8") as f:
-        for p in full_polyline:
-            f.write(f"{p[0]},{p[1]}\n")
+        for lat, lng in full_polyline:
+            f.write(f"{lat},{lng}\n")
+
 
     return render_template(
         "result.html",
         polyline=full_polyline,
         nodes=nodes,   # 加上这一行
+        stations=stations,
         ak=AK
     )
+
+
+
+# @app.route("/test_plan")
+# def test_plan():
+#     # 模拟 polyline 数据（纬度, 经度）
+#     polyline = [
+#         [39.915, 116.404],
+#         [39.925, 116.414],
+#         [39.935, 116.424],
+#         [39.999, 115.000]
+#     ]
+
+#     # 模拟充电站数据
+#     stations = [
+#         {
+#             "name": "测试充电站A",
+#             "lat": 39.920,
+#             "lng": 116.410,
+#             "address": "北京市东城区"
+#         },
+#         {
+#             "name": "测试充电站B",
+#             "lat": 39.930,
+#             "lng": 116.420,
+#             "address": "北京市西城区"
+#         }
+#     ]
+
+#     # 渲染模板（确保 templates 文件夹中有 result.html）
+#     return render_template("result.html", polyline=polyline, nodes=stations, ak=AK)
+
 
 
 
