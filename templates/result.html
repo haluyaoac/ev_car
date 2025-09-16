@@ -22,7 +22,8 @@
             overflow-y: auto;
         }
     </style>
-    <script type="text/javascript" src="https://api.map.baidu.com/api?v=1.0&type=webgl&ak=UIAbWq8rLfKdrUx5I76YJLX6aRsXGUE3"></script>
+    <!-- 用 BMapGL -->
+    <script type="text/javascript" src="https://api.map.baidu.com/api?v=1.0&type=webgl&ak=fYcVa9810AKiixV8SR9MCGhvgXbkoBpU"></script>
 </head>
 <body>
     <div id="map"></div>
@@ -42,18 +43,18 @@
         var polylinePoints = JSON.parse(container.dataset.polyline);
         var stations = JSON.parse(container.dataset.stations);
 
-        // 创建地图
-        var map = new BMap.Map("map");
+        // 创建地图（BMapGL）
+        var map = new BMapGL.Map("map");
         map.enableScrollWheelZoom(true);
 
         // 转换为百度地图点
         var bPoints = polylinePoints.map(function (p) {
-            return new BMap.Point(p[1], p[0]); // 注意经纬度顺序 (lng, lat)
+            return new BMapGL.Point(p[1], p[0]); // 注意 (lng, lat)
         });
 
         // 绘制路径
         if (bPoints.length > 1) {
-            var polyline = new BMap.Polyline(bPoints, {
+            var polyline = new BMapGL.Polyline(bPoints, {
                 strokeColor: "blue",
                 strokeWeight: 5,
                 strokeOpacity: 0.7
@@ -63,22 +64,22 @@
 
         // 起点终点
         if (bPoints.length > 0) {
-            var startMarker = new BMap.Marker(bPoints[0]);
-            startMarker.setLabel(new BMap.Label("起点", {offset: new BMap.Size(20, -10)}));
+            var startMarker = new BMapGL.Marker(bPoints[0]);
+            startMarker.setLabel(new BMapGL.Label("起点", {offset: new BMapGL.Size(20, -10)}));
             map.addOverlay(startMarker);
 
-            var endMarker = new BMap.Marker(bPoints[bPoints.length - 1]);
-            endMarker.setLabel(new BMap.Label("终点", {offset: new BMap.Size(20, -10)}));
+            var endMarker = new BMapGL.Marker(bPoints[bPoints.length - 1]);
+            endMarker.setLabel(new BMapGL.Label("终点", {offset: new BMapGL.Size(20, -10)}));
             map.addOverlay(endMarker);
         }
 
         // 所有充电桩
         stations.forEach(function(st) {
-            var pt = new BMap.Point(st.lng, st.lat);
-            var marker = new BMap.Marker(pt);
+            var pt = new BMapGL.Point(st.lng, st.lat);
+            var marker = new BMapGL.Marker(pt);
             map.addOverlay(marker);
 
-            var info = new BMap.InfoWindow(
+            var info = new BMapGL.InfoWindow(
                 "<b>" + st.name + "</b><br/>" + (st.address || "无地址信息"),
                 {width: 250, height: 80, title: "充电站信息"}
             );

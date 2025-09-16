@@ -3,9 +3,7 @@ import random
 from typing import List, Tuple
 from config import RANDOM_SEED
 import time
-import requests
-from typing import List, Optional, Tuple
-from random import uniform
+from typing import List, Tuple
 from threading import Lock
 
 random.seed(RANDOM_SEED)

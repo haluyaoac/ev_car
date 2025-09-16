@@ -73,9 +73,6 @@ def get_route_polyline(start: Coord, end: Coord, ak: str) -> Tuple[Optional[List
         "ak": ak,
     }
     data = fetch_json(DRIVE_URL, params, retries=3, timeout_s=18)
-    if not data or data.get("_error"):
-        print("[Baidu] 路线请求异常:", data.get("_error") if isinstance(data, dict) else data)
-        return None
     if data.get("status") != 0:
         print("[Baidu] 路线请求失败:", data.get("message", data))
         return None

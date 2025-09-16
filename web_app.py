@@ -1,6 +1,6 @@
 from flask import Flask, request, render_template
 import logging
-from config import USE_BAIDU_POI, USE_BAIDU_DIS, AK, CAR, USE_SPARSIFICATION, SPANNER_EPSILON
+from config import USE_BAIDU_POI, USE_BAIDU_DIS, AK, CAR, USE_SPARSIFICATION, SPANNER_EPSILON, USE_CAR
 import baidu_api
 import graph_builder
 import path_planner
@@ -25,23 +25,25 @@ def plan():
     start_soc = int(request.form.get("start_soc", "70"))
     origin = request.form.get("origin", "").strip() or "天津城建大学"
     destination = request.form.get("destination", "").strip() or "天津滨海国际机场"
+    if USE_CAR:
+        # 读取车辆配置（优先品牌/名称）
+        with db_session.SessionLocal() as db:
+            car_obj = None
+            if brand:
+                car_obj = db_crud.get_car_by_brand(db, brand) or db_crud.get_car_by_name(db, brand)
+            if not car_obj:
+                car_obj = db_crud.get_car_by_name(db, CAR.get("name")) or db_crud.get_default_car(db)
 
-    # 读取车辆配置（优先品牌/名称）
-    with db_session.SessionLocal() as db:
-        car_obj = None
-        if brand:
-            car_obj = db_crud.get_car_by_brand(db, brand) or db_crud.get_car_by_name(db, brand)
-        if not car_obj:
-            car_obj = db_crud.get_car_by_name(db, CAR.get("name")) or db_crud.get_default_car(db)
-
-    if car_obj:
-        car_used = {
-            "name": car_obj.name,
-            "battery_kwh": car_obj.battery_kwh,
-            "consumption_kwh_per_km": car_obj.consumption_kwh_per_km,
-            "initial_soc_percent": car_obj.initial_soc_percent,
-            "avg_speed_kmph": car_obj.avg_speed_kmph,
-        }
+        if car_obj:
+            car_used = {
+                "name": car_obj.name,
+                "battery_kwh": car_obj.battery_kwh,
+                "consumption_kwh_per_km": car_obj.consumption_kwh_per_km,
+                "initial_soc_percent": car_obj.initial_soc_percent,
+                "avg_speed_kmph": car_obj.avg_speed_kmph,
+            }
+        else:
+            car_used = CAR
     else:
         car_used = CAR
 
@@ -91,7 +93,7 @@ def plan():
     #稀疏化处理
     if USE_SPARSIFICATION == 1:
     #采用Greedy-Spanner稀疏化
-        points = [(n["lat"], n["lng"]) for n in nodes]
+        points = [(n["lat"], n["lng"]) for n in stations]
         keep_pairs = graph_builder.greedy_spanner(points, SPANNER_EPSILON)
         adj_final = {i: [] for i in range(len(points))}
         for u, v, _ in keep_pairs:

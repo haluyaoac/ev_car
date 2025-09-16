@@ -3,8 +3,10 @@
 
 # ===== 百度地图 =====
 AK = "UIAbWq8rLfKdrUx5I76YJLX6aRsXGUE3"
+AK2 = "fYcVa9810AKiixV8SR9MCGhvgXbkoBpU" #用于wbj地图
 USE_BAIDU_DIS = False            # True 用百度获取距离；False 用文件
 USE_BAIDU_POI = False             # True 用百度周边 POI 搜索充电站；False 用文件
+USE_CAR = True                  # True 从数据库获取车辆参数；False 用默认汽车
 
 # ===== 车辆参数 =====
 CAR = {
