@@ -6,10 +6,11 @@ baidu_api.py
 - search_stations_along_route(route_poly, ak, ...): 按段分配配额、分页请求、扩半径、去重与下采样
 
 """
+from time import sleep
 from typing import List, Optional, Tuple
-import requests
 from utils import Coord
 from qps_manner import fetch_json, ensure_dispatcher_started
+from config import AK
 
 
 DRIVE_URL = "https://api.map.baidu.com/directionlite/v1/driving"
@@ -171,49 +172,64 @@ def search_stations_by_circle(query, center, radius_m, ak) -> List[dict]:
     return stations
 
 
-# get_distance_matrix 改造：内部每次调用 fetch_json
 def get_distance_matrix(origins: List[Coord], destinations: List[Coord], ak: str, qps_limiter=None, max_retries=3):
     ensure_dispatcher_started()
     if not origins or not destinations:
         return []
     max_points = 100
-    if len(origins) * len(destinations) > max_points:
-        print(f"[Baidu] 点数过多 {len(origins)}x{len(destinations)}")
+    n_ori = len(origins)
+    n_dst = len(destinations)
+    if n_ori * n_dst > max_points:
+        print(f"[Baidu] 点数过多 {n_ori}x{n_dst}")
         return None
     params = {
         "origins": "|".join([_fmt_coord_bd09(*pt) for pt in origins]),
         "destinations": "|".join([_fmt_coord_bd09(*pt) for pt in destinations]),
         "ak": ak,
     }
-    data = fetch_json(DISTANCE_URL, params, retries=max_retries, timeout_s=15)
-    if not data or data.get("_error"):
-        print("[Baidu] 距离矩阵异常:", data.get("_error") if isinstance(data, dict) else data)
-        return None
-    if data.get("status") != 0:
+
+    data = fetch_json(DISTANCE_URL, params, retries=max_retries, timeout_s=15) 
+    redo = 0
+    while data.get("status") != 0:
+        redo += 1
         print("[Baidu] 距离矩阵失败:", data.get("message", data))
-        return None
+        print("重试中第", redo)
+        sleep(1000);
+        data = fetch_json(DISTANCE_URL, params, retries=max_retries, timeout_s=15)
+
     results = data.get("result", [])
-    if not results:
+    if not results or len(results) != n_ori * n_dst:
+        print("[Baidu] 距离矩阵结果数量异常")
         return None
+
+    # 组装为二维矩阵
     matrix: List[List[Optional[float]]] = []
-    for row in results:
-        row_values = []
-        if isinstance(row, list):
-            for cell in row:
-                val = None
-                if cell and "distance" in cell and cell["distance"].get("value") is not None:
-                    val = cell["distance"]["value"] / 1000.0
-                row_values.append(val)
-        elif isinstance(row, dict):
-            if "distance" in row and row["distance"].get("value") is not None:
-                row_values.append(row["distance"]["value"] / 1000.0)
-            else:
-                row_values.append(None)
-        matrix.append(row_values)
+    for i in range(n_ori):
+        row = []
+        for j in range(n_dst):
+            idx = i * n_dst + j
+            cell = results[idx]
+            val = None
+            if cell and "distance" in cell and cell["distance"].get("value") is not None:
+                val = cell["distance"]["value"] / 1000.0  # 米转公里
+            row.append(val)
+        matrix.append(row)
     return matrix
 
 
-def search_stations_along_route():
+def search_charging_stations_near(coord: Coord, radius: int = 2000) -> List[Dict]:
+    """
+    调用百度POI搜索API，返回附近充电桩列表
+    """
+    params = {
+        "query": "充电桩",
+        "location": f"{coord[0]},{coord[1]}",
+        "radius": radius,
+        "output": "json",
+        "ak": AK,
+    }
+    data = fetch_json(PLACE_URL, params)
+    return data.get("results", [])
     
 
 

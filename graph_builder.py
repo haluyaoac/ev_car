@@ -22,6 +22,18 @@ def _try_import_baidu_api():
 def build_graph_with_endpoints2(stations, origin=None, destination=None,
                                 max_range_km=200.0, ak=None,
                                 prefilter_factor=1.0, verbose=False):
+    """
+    将 charging stations + origin + destination 作为节点，按导航距离构建邻接表。
+    重要：先用直线距离预筛（fast），只有在直线距离未超过预筛阈值时才调用导航 API 获取实际路径距离（昂贵）。
+    返回: (nodes, adj, idx_origin, idx_destination)
+    stations: List[dict],                     充电站列表，每个充电站为 dict 或 (lat,lng) tuple          
+    origin: Optional[Coord] = None,           起点坐标 (lat, lng)，可选
+    destination: Optional[Coord] = None,      终点坐标 (lat, lng)，可选
+    max_range_km: float = 200.0,              续航里程阈值（单位 km）
+    ak: Optional[str] = None,                 百度地图 API Key，若 use_baidu_route 则必需
+    prefilter_factor: float = 1,              预筛倍数，控制直线距离预筛阈值（详见说明）
+    verbose: bool = False                     是否打印调试信息
+    """
     # 构造节点
     nodes = []
     for s in stations:

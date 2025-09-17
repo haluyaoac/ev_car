@@ -5,6 +5,7 @@
 AK = "UIAbWq8rLfKdrUx5I76YJLX6aRsXGUE3"
 AK2 = "fYcVa9810AKiixV8SR9MCGhvgXbkoBpU" #用于wbj地图
 USE_BAIDU_DIS = False            # True 用百度获取距离；False 用文件
+USE_BAIDU_ROUTE = True          # True 用百度路线规划距离；False 用直线距离
 USE_BAIDU_POI = False             # True 用百度周边 POI 搜索充电站；False 用文件
 USE_CAR = True                  # True 从数据库获取车辆参数；False 用默认汽车
 
@@ -35,5 +36,11 @@ RANDOM_SEED = 42   # 随机种子
 # ===== 数据库配置 =====
 DB_URL = "mysql+pymysql://root:123456@localhost:3306/ev_car?charset=utf8mb4"
 # ...existing code..."   # 相对路径 SQLite 数据库文件
+
+
+
+# ===== search_by_search参数 =====
+circle_num = 8        # 圆周采样点数
+circle_r = 0.05      # 圆半径，单位：度（约5公里）
 
 

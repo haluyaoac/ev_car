@@ -5,8 +5,9 @@ baidu_api.py
 - poi_charging_near_paginated(...): 在单点附近分页获取充电站（返回字典列表）
 - search_stations_along_route(route_poly, ak, ...): 按段分配配额、分页请求、扩半径、去重与下采样
 """
-from baidu_api import get_distance_matrix
-from typing import List, Optional
+import math
+from baidu_api import get_distance_matrix, get_route_polyline, search_charging_stations_near
+from typing import Dict, List, Optional
 from typing import List, Optional, Tuple
 from utils import QPSLimiter
 
@@ -63,5 +64,39 @@ def get_distance_matrix_batched(origins: List[Coord], destinations: List[Coord],
         result_matrix.append(row_distances)
 
     return result_matrix
+
+
+
+
+def search_stations_along_route(route_points: List[Dict], ak: str) -> List[Dict]:
+    full_polyline: List[Coord] = []
+    charging_points: List[Dict] = []
+    seen_ids = set()
+
+    for i in range(len(route_points) - 1):
+        start = (route_points[i][0], route_points[i][1])
+        end = (route_points[i + 1][0], route_points[i + 1][1])
+        route_data = get_route_polyline(start, end, ak=ak)
+        if not route_data:
+            continue
+
+        seg_poly = route_data["polyline"]
+        if full_polyline and seg_poly and full_polyline[-1] == seg_poly[0]:
+            seg_poly = seg_poly[1:]
+        full_polyline.extend(seg_poly)
+
+        # 取路段中点作为搜索中心
+        if seg_poly:
+            mid = seg_poly[len(seg_poly) // 2]
+            stations = search_charging_stations_near(mid, radius=2000)
+            # 按距离排序，取最近的1-2个
+            stations = sorted(stations, key=lambda s: s.get("distance", math.inf))[:2]
+            for st in stations:
+                sid = st.get("uid") or (st["location"]["lat"], st["location"]["lng"])
+                if sid not in seen_ids:
+                    seen_ids.add(sid)
+                    charging_points.append(st)
+
+    return charging_points
 
 

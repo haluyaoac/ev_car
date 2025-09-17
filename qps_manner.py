@@ -2,18 +2,19 @@ import asyncio, time, json, traceback, atexit
 import aiohttp
 from typing import Optional, Dict, Any, List
 
+
 class AsyncRequestDispatcher:
     def __init__(self, max_qps: int = 3, max_concurrent: int = 3, user_agent: str = "EV-Planner/1.0"):
-        self.max_qps = max_qps                                   # 每秒最大请求数
-        self.max_concurrent = max_concurrent                     # 最大并发请求数   
-        self._last_req_ts = 0.0                                  # 上次请求时间戳
-        self._sem = asyncio.Semaphore(max_concurrent)            # 并发控制信号量
-        self._queue: asyncio.Queue = asyncio.Queue()             # 请求队列
-        self._workers: List[asyncio.Task] = []                   # 工作协程列表
-        self._session: Optional[aiohttp.ClientSession] = None    # aiohttp session
-        self._running = False                                    # 是否已启动
-        self._ua = user_agent                                    # User-Agent
-    
+        self.max_qps = max_qps
+        self.max_concurrent = max_concurrent
+        self._last_req_ts = 0.0
+        self._sem = asyncio.Semaphore(max_concurrent)
+        self._queue: asyncio.Queue = asyncio.Queue()
+        self._workers: List[asyncio.Task] = []
+        self._session: Optional[aiohttp.ClientSession] = None
+        self._running = False
+        self._ua = user_agent
+        self._lock = asyncio.Lock()  # 🔑 用于 QPS 控制加锁
 
     async def start(self, worker_count: int = 3):
         if self._running:
@@ -26,7 +27,6 @@ class AsyncRequestDispatcher:
 
     async def shutdown(self):
         self._running = False
-        # 取消 worker
         for t in self._workers:
             t.cancel()
         self._workers.clear()
@@ -35,15 +35,16 @@ class AsyncRequestDispatcher:
             self._session = None
 
     async def _throttle(self):
-        # 简单 QPS 控制：保证两次请求间隔 >= 1/max_qps
+        """QPS 限制，保证全局请求间隔 >= 1/max_qps"""
         if self.max_qps <= 0:
             return
-        now = time.time()
         interval = 1.0 / self.max_qps
-        delta = now - self._last_req_ts
-        if delta < interval:
-            await asyncio.sleep(interval - delta)
-        self._last_req_ts = time.time()
+        async with self._lock:  # 🔑 全局锁，避免多个 worker 并发突破限制
+            now = time.time()
+            delta = now - self._last_req_ts
+            if delta < interval:
+                await asyncio.sleep(interval - delta)
+            self._last_req_ts = time.time()
 
     async def _worker(self):
         while True:
@@ -68,7 +69,7 @@ class AsyncRequestDispatcher:
         for attempt in range(1, retries + 1):
             try:
                 await self._throttle()
-                async with self._session.get(url, params=params) as resp:
+                async with self._session.get(url, params=params, timeout=timeout_s) as resp:
                     text = await resp.text()
                     if resp.status != 200:
                         raise RuntimeError(f"http {resp.status} body={text[:180]}")
@@ -81,16 +82,17 @@ class AsyncRequestDispatcher:
                     return {"_error": str(e), "_trace": traceback.format_exc(), "_attempts": attempt}
                 await asyncio.sleep(backoff)
                 backoff *= 1.6
-        return {"_error": "unreachable"}  # 理论不达
+        return {"_error": "unreachable"}
 
     async def fetch_json_async(self, url: str, params: Dict[str, Any], retries: int = 3, timeout_s: float = 15.0):
-        # 异步接口：提交请求并返回 Future
         fut = asyncio.get_event_loop().create_future()
         await self._queue.put((url, params, fut, retries, timeout_s))
         return await fut
 
-# 全局单例
+
+# ---------- 全局单例封装 ----------
 _dispatcher: Optional[AsyncRequestDispatcher] = None
+
 
 def get_dispatcher() -> AsyncRequestDispatcher:
     global _dispatcher
@@ -98,10 +100,12 @@ def get_dispatcher() -> AsyncRequestDispatcher:
         _dispatcher = AsyncRequestDispatcher(max_qps=3, max_concurrent=3)
     return _dispatcher
 
+
 def set_limits(max_qps: int = 3, max_concurrent: int = 3):
     d = get_dispatcher()
     d.max_qps = max_qps
     d.max_concurrent = max_concurrent
+
 
 def ensure_dispatcher_started():
     d = get_dispatcher()
@@ -112,10 +116,10 @@ def ensure_dispatcher_started():
         asyncio.set_event_loop(loop)
     if not d._running:
         if loop.is_running():
-            # 若已有 loop（如在 FastAPI/Flask + ai loop），提交启动任务
             loop.create_task(d.start())
         else:
             loop.run_until_complete(d.start())
+
 
 def shutdown_dispatcher():
     d = get_dispatcher()
@@ -129,22 +133,22 @@ def shutdown_dispatcher():
         else:
             loop.run_until_complete(d.shutdown())
 
+
 atexit.register(shutdown_dispatcher)
+
 
 def fetch_json(url: str, params: Dict[str, Any], retries: int = 3, timeout_s: float = 15.0):
     """
     同步封装：阻塞直到得到结果（适配现有同步 baidu_api 代码）。
-    timeout_s: 每次请求超时，非总超时。
     """
     ensure_dispatcher_started()
     d = get_dispatcher()
     loop = asyncio.get_event_loop()
+    coro = d.fetch_json_async(url, params, retries=retries, timeout_s=timeout_s)
+
     if loop.is_running():
-        # 已有事件循环（可能在异步 web 框架内部）——应提示用异步接口
-        # 简单方案：使用 asyncio.run_coroutine_threadsafe（但需线程）
-        # 这里直接抛出警告；若需要可扩展线程安全调用
-        coro = d.fetch_json_async(url, params, retries=retries, timeout_s=timeout_s)
-        # 临时：创建新任务并等待完成
-        return asyncio.run(coro)
+        # 🔑 在已有 loop 中执行
+        fut = asyncio.run_coroutine_threadsafe(coro, loop)
+        return fut.result()
     else:
-        return loop.run_until_complete(d.fetch_json_async(url, params, retries=retries, timeout_s=timeout_s))
+        return loop.run_until_complete(coro)
