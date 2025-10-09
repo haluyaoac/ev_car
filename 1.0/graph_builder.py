@@ -5,7 +5,7 @@ import time
 from utils import Coord, haversine_km
 from collections import deque
 from typing import Set
-from baidu_api_impl import get_distance_matrix_batched
+from baidu_api_impl import get_distance_one_one
 
 Edge = Tuple[int, int, float]  # (u,v,dist_km)
 
@@ -37,10 +37,13 @@ def build_graph_with_endpoints2(stations, origin=None, destination=None,
     # 构造节点
     nodes = []
     for s in stations:
-        if isinstance(s, dict):
-            nodes.append({**s})
-        else:
-            nodes.append({"lat": s[0], "lng": s[1]})
+        nodes.append({
+            "name": s.get("name", ""),
+            "lat": s.get("lat", s.get("location", {}).get("lat")),
+            "lng": s.get("lng", s.get("location", {}).get("lng")),
+            "address": s.get("address", ""),
+            "uid": s.get("uid", "")
+        })
 
     idx_origin = None
     idx_destination = None
@@ -71,7 +74,7 @@ def build_graph_with_endpoints2(stations, origin=None, destination=None,
         print(f"[DEBUG] 起点 {i} ({coords[i]}), 候选终点数: {len(lst)}")
 
     # 批量导航距离
-    nav_matrix = get_distance_matrix_batched(coords, coords, to_lists, ak) if ak else None
+    nav_matrix = get_distance_one_one(coords, coords, to_lists, ak) if ak else None
 
     # 构建邻接表
     adj = {i: [] for i in range(n)}

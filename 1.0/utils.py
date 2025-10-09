@@ -15,27 +15,6 @@ EARTH_R_KM = 6371.0088
 EARTH_RADIUS = 6371000  # 地球半径（米）
 
 
-# =========================
-# QPS控制器
-# =========================
-
-class QPSLimiter:
-    def __init__(self, max_qps: int):
-        self.interval = 1.0 / max_qps
-        self.last_time = 0
-        self.lock = Lock()
-
-    def wait(self):
-        with self.lock:
-            now = time.time()
-            elapsed = now - self.last_time
-            if elapsed < self.interval:
-                wait_time = self.interval - elapsed
-                print(f"[QPS] 等待 {wait_time:.2f} 秒")
-                time.sleep(wait_time)
-            self.last_time = time.time()
-
-
 def offset_coordinate(lat, lng, distance_m, bearing_deg):
     δ = distance_m / EARTH_RADIUS
     θ = math.radians(bearing_deg)
@@ -47,27 +26,6 @@ def offset_coordinate(lat, lng, distance_m, bearing_deg):
                          math.cos(δ) - math.sin(φ1) * math.sin(φ2))
     return math.degrees(φ2), math.degrees(λ2)
 
-
-def build_buffer_polygon(polyline, buffer_km):
-    """绘制多边形"""
-    left_offsets = []
-    right_offsets = []
-    for i in range(len(polyline) - 1):
-        lat1, lng1 = polyline[i]
-        lat2, lng2 = polyline[i+1]
-        dx = math.radians(lng2 - lng1)
-        dy = math.radians(lat2 - lat1)
-        y = math.sin(dx) * math.cos(math.radians(lat2))
-        x = math.cos(math.radians(lat1)) * math.sin(math.radians(lat2)) - \
-            math.sin(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.cos(dx)
-        bearing = (math.degrees(math.atan2(y, x)) + 360) % 360
-        left_offsets.append(offset_coordinate(lat1, lng1, buffer_km*1000, bearing - 90))
-        right_offsets.append(offset_coordinate(lat1, lng1, buffer_km*1000, bearing + 90))
-    lat_last, lng_last = polyline[-1]
-    left_offsets.append(offset_coordinate(lat_last, lng_last, buffer_km*1000, bearing - 90))
-    right_offsets.append(offset_coordinate(lat_last, lng_last, buffer_km*1000, bearing + 90))
-    polygon = left_offsets + right_offsets[::-1]
-    return polygon
 
 def geodesic_distance(lat1, lng1, lat2, lng2):
     """计算两点球面距离（米）"""
@@ -130,6 +88,61 @@ def distance_point_to_polyline_km(p: Coord, poly: List[Coord]) -> float:
 
 def rnd(a: float, b: float) -> float:
     return random.uniform(a, b)
+
+
+def offset_point(lat, lng, dx, dy):
+    """
+    根据经纬度和东西/南北方向的偏移量（米）计算新坐标
+    dx: 东西方向偏移（米），向东为正
+    dy: 南北方向偏移（米），向北为正
+    """
+    new_lat = lat + (dy / EARTH_RADIUS) * (180 / math.pi)
+    new_lng = lng + (dx / (EARTH_RADIUS * math.cos(math.radians(lat)))) * (180 / math.pi)
+    return new_lat, new_lng
+
+def corridor_polygon(lat1, lng1, lat2, lng2, half_width_m):
+    """
+    根据两点和走廊半宽生成矩形多边形（首尾闭合）
+    返回 [(lat, lng), ...]
+    """
+    # 计算连线的方位角（弧度）
+    dx = (lng2 - lng1) * math.pi / 180 * EARTH_RADIUS * math.cos(math.radians((lat1 + lat2) / 2))
+    dy = (lat2 - lat1) * math.pi / 180 * EARTH_RADIUS
+    angle = math.atan2(dx, dy)  # 注意这里dx, dy顺序
+
+    # 垂直方向的偏移角
+    perp_angle = angle + math.pi / 2
+
+    # 起点左右偏移
+    lat1_left, lng1_left = offset_point(lat1, lng1,
+                                        half_width_m * math.cos(perp_angle),
+                                        half_width_m * math.sin(perp_angle))
+    lat1_right, lng1_right = offset_point(lat1, lng1,
+                                          -half_width_m * math.cos(perp_angle),
+                                          -half_width_m * math.sin(perp_angle))
+    # 终点左右偏移
+    lat2_left, lng2_left = offset_point(lat2, lng2,
+                                        half_width_m * math.cos(perp_angle),
+                                        half_width_m * math.sin(perp_angle))
+    lat2_right, lng2_right = offset_point(lat2, lng2,
+                                          -half_width_m * math.cos(perp_angle),
+                                          -half_width_m * math.sin(perp_angle))
+
+    # 顺时针闭合
+    polygon = [
+        (lat1_left, lng1_left),
+        (lat2_left, lng2_left),
+        (lat2_right, lng2_right),
+        (lat1_right, lng1_right),
+        (lat1_left, lng1_left)  # 闭合
+    ]
+    return polygon
+
+def polygon_to_bounds_str(polygon):
+    """
+    将多边形点列表转成百度API bounds参数字符串
+    """
+    return ",".join([f"{lat:.6f},{lng:.6f}" for lat, lng in polygon])
 
 
 
