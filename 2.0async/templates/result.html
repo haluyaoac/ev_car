@@ -22,8 +22,7 @@
             overflow-y: auto;
         }
     </style>
-    <!-- 用 BMapGL -->
-    <script type="text/javascript" src="https://api.map.baidu.com/api?v=1.0&type=webgl&ak=fYcVa9810AKiixV8SR9MCGhvgXbkoBpU"></script>
+    <script src="https://api.map.baidu.com/api?v=1.0&type=webgl&ak={{ ak }}"></script>
 </head>
 <body>
     <div id="map"></div>
@@ -32,29 +31,38 @@
         <ol id="route-list"></ol>
     </div>
 
-    <!-- 用 data-* 存储 Jinja2 渲染的数据 -->
     <div id="data"
          data-polyline='{{ polyline|tojson|safe }}'
          data-stations='{{ stations|tojson|safe }}'
          data-nodes='{{ nodes|tojson|safe }}'></div>
 
     <script>
-        // 从隐藏 div 中取出 JSON 数据
         var container = document.getElementById("data");
         var polylinePoints = JSON.parse(container.dataset.polyline);
         var stations = JSON.parse(container.dataset.stations);
         var nodes = JSON.parse(container.dataset.nodes);
+        console.log(polylinePoints);
+        console.log(stations);
+        console.log(nodes);
 
-        // 创建地图（BMapGL）
         var map = new BMapGL.Map("map");
         map.enableScrollWheelZoom(true);
 
-        // 转换为百度地图点
-        var bPoints = polylinePoints.map(function (p) {
-            return new BMapGL.Point(p[1], p[0]); // 注意 (lng, lat)
+        // --- 路径线 ---
+        var bPoints = [];
+        // 遍历每个段
+        polylinePoints.forEach(function (p) {
+            // 确保 p.polyline 存在并且是数组
+            if (Array.isArray(p.polyline)) {
+                p.polyline.forEach(function (coord) {
+                    // coord[0] 是 lat，coord[1] 是 lng
+                    var lat = coord[0];
+                    var lng = coord[1];
+                    console.log(lat, lng);
+                    bPoints.push(new BMapGL.Point(lng, lat)); // 注意百度地图要求 Point(经度, 纬度)
+                });
+            }
         });
-
-        // 绘制路径
         if (bPoints.length > 1) {
             var polyline = new BMapGL.Polyline(bPoints, {
                 strokeColor: "blue",
@@ -64,20 +72,24 @@
             map.addOverlay(polyline);
         }
 
-        // 起点终点
-        if (bPoints.length > 0) {
-            var startMarker = new BMapGL.Marker(bPoints[0]);
-            startMarker.setLabel(new BMapGL.Label("起点", {offset: new BMapGL.Size(20, -10)}));
-            map.addOverlay(startMarker);
+        // --- 起点终点 ---
+        var startMarker = new BMapGL.Marker(nodes[0]);
+        
+        startMarker.setLabel(new BMapGL.Label("起点", {offset: new BMapGL.Size(20, -10)}));
+        map.addOverlay(startMarker);
 
-            var endMarker = new BMapGL.Marker(bPoints[bPoints.length - 1]);
-            endMarker.setLabel(new BMapGL.Label("终点", {offset: new BMapGL.Size(20, -10)}));
-            map.addOverlay(endMarker);
+        var endMarker = new BMapGL.Marker(nodes[nodes.length - 1]);
+        console.log(bPoints[bPoints.length - 1]);
+        endMarker.setLabel(new BMapGL.Label("终点", {offset: new BMapGL.Size(20, -10)}));
+        map.addOverlay(endMarker);
+        for(var i=0;i<bPoints.length;i++){
+            console.log(bPoints[i]);
         }
 
-        // 所有充电桩
+        // --- 充电桩 ---
         stations.forEach(function(st) {
-            var pt = new BMapGL.Point(st.lng, st.lat);
+            if (!st.location) return;
+            var pt = new BMapGL.Point(st.location.lng, st.location.lat);
             var marker = new BMapGL.Marker(pt);
             map.addOverlay(marker);
 
@@ -90,16 +102,18 @@
             });
         });
 
-        // 自动缩放到合适视野
+        // --- 自动缩放 ---
         if (bPoints.length > 0) {
             map.setViewport(bPoints);
         }
 
-        // 左侧路线面板
+        // --- 路径节点信息 ---
         var routeList = document.getElementById("route-list");
         nodes.forEach(function (p, idx) {
             var li = document.createElement("li");
-            li.innerText = "第 " + (idx + 1) + " 点: (" + p[0].toFixed(6) + ", " + p[1].toFixed(6) + ")";
+            li.innerText = "第 " + (idx + 1) + " 点: " + (p.name || "未知节点") +
+                " (" + p.lat.toFixed(6) + ", " + p.lng.toFixed(6) + ") " +
+                "SOC=" + (p.soc >= 0 ? p.soc.toFixed(2) : "N/A");
             routeList.appendChild(li);
         });
     </script>

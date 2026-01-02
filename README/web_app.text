@@ -1,0 +1,22 @@
+nodes -> List[Dict] : 路线中的充电桩
+'lat'
+'lng'
+'soc'
+'name'
+
+full_polyline -> List[Dict] : 路线折线点列表
+"polyline" : 
+"poly_start"
+"poly_end"
+"poly_name"
+"poly_distance"
+"raw"
+
+stations -> List[Dict] : 所有充电桩
+'name'
+'address'
+'location': Dict{'lat':float,'lng':float}
+'area'
+'telephone'
+'overall_rating'
+'uid'

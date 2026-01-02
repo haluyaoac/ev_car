@@ -5,7 +5,8 @@ import time
 from utils import Coord, haversine_km
 from collections import deque
 from typing import Set
-from baidu_api_impl import get_distance_one_one
+from baidu_api_impl import get_distance_matrix_batched_async_start
+from ak_manner import AK
 
 Edge = Tuple[int, int, float]  # (u,v,dist_km)
 
@@ -19,9 +20,13 @@ def _try_import_baidu_api():
     
 
 
-def build_graph_with_endpoints2(stations, origin=None, destination=None,
-                                max_range_km=200.0, ak=None,
-                                prefilter_factor=1.0, verbose=False):
+def build_graph_with_endpoints2(stations, 
+                                origin=None, 
+                                destination=None,
+                                max_range_km=200.0, 
+                                aks: List[AK] = None,
+                                prefilter_factor=1.0, 
+                                verbose=False):
     """
     将 charging stations + origin + destination 作为节点，按导航距离构建邻接表。
     重要：先用直线距离预筛（fast），只有在直线距离未超过预筛阈值时才调用导航 API 获取实际路径距离（昂贵）。
@@ -74,7 +79,7 @@ def build_graph_with_endpoints2(stations, origin=None, destination=None,
         print(f"[DEBUG] 起点 {i} ({coords[i]}), 候选终点数: {len(lst)}")
 
     # 批量导航距离
-    nav_matrix = get_distance_one_one(coords, coords, to_lists, ak) if ak else None
+    nav_matrix = get_distance_matrix_batched_async_start(coords, coords, to_lists, aks)
 
     # 构建邻接表
     adj = {i: [] for i in range(n)}

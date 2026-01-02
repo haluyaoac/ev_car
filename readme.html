@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>readme.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="1%E9%A1%B9%E7%9B%AE%E8%83%8C%E6%99%AF">1.项目背景</h1>
+<p>电动车逐渐得到普及，但电动车的续航问题一直令人焦虑。车企为了缓解这个问题，从大电量长续航和换电两条<a href="https://zhida.zhihu.com/search?content_id=165957748&amp;content_type=Article&amp;match_order=1&amp;q=%E6%8A%80%E6%9C%AF%E8%B7%AF%E7%BA%BF&amp;zd_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ6aGlkYV9zZXJ2ZXIiLCJleHAiOjE3NjEyMTY2MDcsInEiOiLmioDmnK_ot6_nur8iLCJ6aGlkYV9zb3VyY2UiOiJlbnRpdHkiLCJjb250ZW50X2lkIjoxNjU5NTc3NDgsImNvbnRlbnRfdHlwZSI6IkFydGljbGUiLCJtYXRjaF9vcmRlciI6MSwiemRfdG9rZW4iOm51bGx9.GGjRyeqtW8estnx8VINBps63nYBq4jIuOXHa17r5xnk&amp;zhida_source=entity">技术路线</a>推进；同时，大量的基础设施铺设也在进行，充电站密度不断增加。在这种情况下，电动车的续航问题有所改观。</p>
+<p>但是，<strong>为了获取最优续航方案，人们开电动车出行需要综合考虑续航里程、充电站位置和充电时间等多因素。</strong> 对于人脑来说，如何获取<a href="https://zhida.zhihu.com/search?content_id=165957748&amp;content_type=Article&amp;match_order=1&amp;q=%E6%9C%80%E4%BC%98%E8%B7%AF%E7%BA%BF&amp;zd_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ6aGlkYV9zZXJ2ZXIiLCJleHAiOjE3NjEyMTY2MDcsInEiOiLmnIDkvJjot6_nur8iLCJ6aGlkYV9zb3VyY2UiOiJlbnRpdHkiLCJjb250ZW50X2lkIjoxNjU5NTc3NDgsImNvbnRlbnRfdHlwZSI6IkFydGljbGUiLCJtYXRjaF9vcmRlciI6MSwiemRfdG9rZW4iOm51bGx9.p7nntFcjrB3iU9s7THKBbwoXM1HUrSfqoO9NNU8pyUA&amp;zhida_source=entity">最优路线</a>？这着实是道有点复杂的思考题。</p>
+<p>其次，<strong>人们的<a href="https://zhida.zhihu.com/search?content_id=165957748&amp;content_type=Article&amp;match_order=1&amp;q=%E9%87%8C%E7%A8%8B%E7%84%A6%E8%99%91&amp;zd_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ6aGlkYV9zZXJ2ZXIiLCJleHAiOjE3NjEyMTY2MDcsInEiOiLph4znqIvnhKbomZEiLCJ6aGlkYV9zb3VyY2UiOiJlbnRpdHkiLCJjb250ZW50X2lkIjoxNjU5NTc3NDgsImNvbnRlbnRfdHlwZSI6IkFydGljbGUiLCJtYXRjaF9vcmRlciI6MSwiemRfdG9rZW4iOm51bGx9.x-D6-zViEUwBR60WEfWY8PB4qv4DLHU2bwkIQ7RD7AE&amp;zhida_source=entity">里程焦虑</a>会随着电动车的续航里程减少而不断增加</strong> ，里程焦虑也因此成了电动车普及过程中的一个主要障碍。</p>
+<p>为了解决这一问题，我们采取了谷歌设想过的算法，并通过百度api为缓解电动车续航焦虑，实现长距离旅行，提供了一种解决方案，<strong>这种算法能综合考虑续航里程、充电时间和行程距离，为用户提供最高效的出行路线建议。</strong></p>
+<h1 id="2%E9%A1%B9%E7%9B%AE%E6%B5%81%E7%A8%8B">2.项目流程</h1>
+<p>导航过程中的最基础约束是：两个充电站之间的距离不能大于电动车的续航里程。这要求算法模型需要基于充电站构建计算图，而不是依赖道路网来进行计算。在这一图结构中，每个充电站都是一个节点，而充电站之间的路程则构成边。</p>
+<p>在实际进行路径规划的时候，需要考虑每一辆电动车的自身特性(包括质量、电池续航水平以及充电头的标准等)。因此，算法需要识别出：连接充电站间的路径对于特定的电动车是否可行。<strong>当特定电动车的导航需求发起时，算法将会从充电站节点间找出可行的路径，而不仅仅包含起点到终点的直接路径。</strong></p>
+<p>所以我们项目主要流程：</p>
+<p>1.获取电车系数和参数</p>
+<p>2.搜索充电桩</p>
+<p>3.建图与图稀疏化（连接构建可用边）</p>
+<p>4.路径规划</p>
+<p>5.获取实际路线</p>
+<p>6.可视化</p>
+<h1 id="3%E5%85%B7%E4%BD%93%E6%B5%81%E7%A8%8B">3.具体流程</h1>
+<h2 id="31%E8%8E%B7%E5%8F%96%E7%94%B5%E8%BD%A6%E7%B3%BB%E6%95%B0%E5%92%8C%E5%8F%82%E6%95%B0">3.1.获取电车系数和参数</h2>
+<p>通过前端输入车辆品牌，后端获取到前端信息后从数据库获取相应品牌汽车的参数。</p>
+<h2 id="32%E6%90%9C%E7%B4%A2%E5%85%85%E7%94%B5%E6%A1%A9%E7%AC%AC%E4%B8%80%E4%B8%AA%E9%9A%BE%E7%82%B9">3.2搜索充电桩（第一个难点）</h2>
+<p>由于全国充电桩总数量超过1千万，且也没有途径可以获取到如此大量的充电桩，我们需要采取一些策略使充电桩的搜索尽可能集中在最优路径上，但是在路劲规划前，我们无从得知最优路径。</p>
+<p>而对于从起点到终点的充电时间取决于总路程距离，总路程距离和行驶时间成正比。故我们采取最短时间路径作为主路径，该主路经可以视作最短路劲或者相对较短路径（受限于路网的复杂性），同时在起始电量相同的情况下，总充电量和总充电时间相对最少。</p>
+<p>故综上所述，我们可以先调用百度api获取最短耗时路径，再沿路搜索充电桩。</p>
+<h2 id="33%E5%BB%BA%E5%9B%BE%E4%B8%8E%E7%A8%80%E7%96%8F%E5%8C%96%E7%AC%AC%E4%BA%8C%E4%B8%AA%E9%9A%BE%E7%82%B9">3.3.建图与稀疏化（第二个难点）</h2>
+<h3 id="331%E5%BB%BA%E5%9B%BE">3.3.1、建图</h3>
+<p>如果要构建完全图，在节点数达到90时，边数就超过了单个AK的单日额度，同时，边数越多，意味着需要消耗的请求数量和耗时越多。但是我们除了限制点数量之外，还可以在请求距离前进行直线预筛，如果直线距离超过续航距离的情况下，实际距离也一定大于续航距离，就可以排除在考虑范围之外。</p>
+<p>在获取所有直线距离符合要求的边实际距离后，再根据续航距离对实际距离进行第二次筛选。</p>
+<h3 id="332%E5%9B%BE%E7%A8%80%E7%96%8F%E5%8C%96">3.3.2、图稀疏化</h3>
+<p>随着点和边数的提升，所构建的图或越来越复杂，着这种情况下，我们可以考虑对图进行稀疏化处理，我们提供了两种稀疏化方法：</p>
+<table>
+<thead>
+<tr>
+<th style="text-align:right">点数</th>
+<th style="text-align:right">边数</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">70</td>
+<td style="text-align:right">2415</td>
+</tr>
+<tr>
+<td style="text-align:right">90</td>
+<td style="text-align:right">4005</td>
+</tr>
+<tr>
+<td style="text-align:right">110</td>
+<td style="text-align:right">5995</td>
+</tr>
+<tr>
+<td style="text-align:right">130</td>
+<td style="text-align:right">8385</td>
+</tr>
+<tr>
+<td style="text-align:right">150</td>
+<td style="text-align:right">11175</td>
+</tr>
+</tbody>
+</table>
+<h4 id="3321knn-%E7%AE%97%E6%B3%95k-%E8%BF%91%E9%82%BB%E7%AE%97%E6%B3%95">3.3.2.1、KNN 算法（k-近邻算法）</h4>
+<h5 id="1-%E6%A0%B8%E5%BF%83%E6%80%9D%E6%83%B3">1. 核心思想</h5>
+<p>在给定点集中，KNN算法通过 <strong>查找目标点的 k 个最近邻节点</strong> ，来构建局部连接关系或进行分类/聚类/建图。</p>
+<p>KNN 本质上是一种<strong>局部邻域结构构建</strong>方法。</p>
+<hr>
+<h5 id="2-%E6%B5%81%E7%A8%8B">2. 流程</h5>
+<p><img src="image/readme/1761108140577.png" alt="1761108140577">---</p>
+<h5 id="%F0%9F%9F%A2-%E4%BC%98%E7%82%B9">🟢 优点</h5>
+<table>
+<thead>
+<tr>
+<th>优点</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>简单高效</td>
+<td>实现容易，可用 KDTree、BallTree、Faiss 加速</td>
+</tr>
+<tr>
+<td>局部性强</td>
+<td>保留最近的空间关系，适合高维嵌入空间或地理邻域</td>
+</tr>
+<tr>
+<td>参数直观</td>
+<td>只需选择合适的 k</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h5 id="%F0%9F%94%B4-%E7%BC%BA%E7%82%B9">🔴 缺点</h5>
+<table>
+<thead>
+<tr>
+<th>缺点</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>全局结构差</td>
+<td>只保证局部连通，可能造成<strong>全局断裂</strong></td>
+</tr>
+<tr>
+<td>参数敏感</td>
+<td>k 太小会导致稀疏、断裂；k 太大则过密、增加计算量</td>
+</tr>
+<tr>
+<td>无几何保证</td>
+<td>无法保证任意两点之间的路径长度接近原始距离（即没有距离保真性）</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h4 id="3322graph-spanners%E5%9B%BE%E7%A8%80%E7%96%8F%E5%8C%96%E7%AE%97%E6%B3%95">3.3.2.2、Graph Spanners（图稀疏化算法）</h4>
+<h5 id="1-%E6%A0%B8%E5%BF%83%E6%80%9D%E6%83%B3">1. 核心思想</h5>
+<p><img src="image/readme/1761108120314.png" alt="1761108120314"></p>
+<h5 id="2-%E6%B5%81%E7%A8%8B%E4%BB%A5%E5%B8%B8%E8%A7%81%E7%9A%84-greedy-spanner-%E4%B8%BA%E4%BE%8B">2. 流程（以常见的 Greedy Spanner 为例）</h5>
+<p><img src="image/readme/1761108089978.png" alt="1761108089978"></p>
+<hr>
+<h5 id="%F0%9F%9F%A2-%E4%BC%98%E7%82%B9">🟢 优点</h5>
+<table>
+<thead>
+<tr>
+<th>优点</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>保持全局距离结构</td>
+<td>近似保持任意两点的最短路径长度（有 stretch 保证）</td>
+</tr>
+<tr>
+<td>全局连通性好</td>
+<td>不易出现断裂问题</td>
+</tr>
+<tr>
+<td>可控制稀疏程度</td>
+<td>调整tt<strong>t</strong>影响边数量：小tt<strong>t</strong>→ 精确但密集，大tt<strong>t</strong>→ 稀疏但近似</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h5 id="%F0%9F%94%B4-%E7%BC%BA%E7%82%B9">🔴 缺点</h5>
+<table>
+<thead>
+<tr>
+<th>缺点</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>计算复杂</td>
+<td>需要多次最短路计算，复杂度较高</td>
+</tr>
+<tr>
+<td>实现困难</td>
+<td>相比 KNN，需要复杂的路径与距离维护结构</td>
+</tr>
+<tr>
+<td>不一定保留最近邻关系</td>
+<td>优化目标是全局距离保持，不一定符合局部几何邻域</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h4 id="3323knn-vs-graph-spanner-%E5%AF%B9%E6%AF%94%E6%80%BB%E7%BB%93">3.3.2.3、KNN vs Graph Spanner 对比总结</h4>
+<table>
+<thead>
+<tr>
+<th>对比项</th>
+<th><strong>KNN</strong></th>
+<th><strong>Graph Spanner</strong></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>目标</strong></td>
+<td>构建局部邻域关系</td>
+<td>保持全局距离近似</td>
+</tr>
+<tr>
+<td><strong>稀疏性来源</strong></td>
+<td>固定每个节点的 k 个邻居</td>
+<td>动态选择满足 stretch 的边</td>
+</tr>
+<tr>
+<td><strong>连通性</strong></td>
+<td>易断裂</td>
+<td>通常连通性更好</td>
+</tr>
+<tr>
+<td><strong>距离保持性</strong></td>
+<td>局部距离精确，全局不保真</td>
+<td>全局距离有近似保证</td>
+</tr>
+<tr>
+<td><strong>计算复杂度</strong></td>
+<td>O(nlog⁡n)O(n \log n)<strong>O</strong>(<strong>n</strong>log<strong>n</strong>)（近邻搜索）</td>
+<td>O(mlog⁡n)O(m \log n)<strong>O</strong>(<strong>m</strong>log<strong>n</strong>)或更高（多次最短路）</td>
+</tr>
+<tr>
+<td><strong>适用场景</strong></td>
+<td>嵌入空间、GNN、地理局部关系</td>
+<td>稀疏图优化、路径规划、图压缩</td>
+</tr>
+<tr>
+<td><strong>可调参数</strong></td>
+<td>k</td>
+<td>stretchtt<strong>t</strong></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h4 id="3324%E5%9C%A8%E8%B7%AF%E5%BE%84%E8%A7%84%E5%88%92%E6%88%96%E5%9C%B0%E5%9B%BE%E6%9E%84%E5%BB%BA%E4%B8%AD%E7%9A%84%E5%BA%94%E7%94%A8%E5%BB%BA%E8%AE%AE">3.3.2.4、在路径规划或地图构建中的应用建议</h4>
+<table>
+<thead>
+<tr>
+<th>场景</th>
+<th>推荐算法</th>
+<th>原因</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>车辆局部路径规划（如自动驾驶、EV路线）</td>
+<td><strong>KNN</strong></td>
+<td>保留局部几何结构，快速搜索邻近节点</td>
+</tr>
+<tr>
+<td>长距离路线稀疏化、充电站图优化</td>
+<td><strong>Graph Spanner</strong></td>
+<td>保持全局连通性与距离近似</td>
+</tr>
+<tr>
+<td>多层结构（局部 + 全局）</td>
+<td><strong>KNN + Spanner混合</strong></td>
+<td>局部连通用KNN，全局稀疏化用Spanner</td>
+</tr>
+</tbody>
+</table>
+<h1 id="4%E8%B7%AF%E5%BE%84%E8%A7%84%E5%88%92%E7%AC%AC%E4%B8%89%E4%B8%AA%E9%9A%BE%E7%82%B9">4.路径规划（第三个难点）</h1>
+<p>如果不考虑充电时间，利用上述节点和边构成的图可以使用Dijkstra算法和A*算法直接找到可行的路径并进行优化(用户在每个节点都会充满电)。在这种情况下，算法不会考量充电时间。</p>
+<p>因此，如果要考虑充电时间，就需要构建新的图结构，将每一个<a href="https://zhida.zhihu.com/search?content_id=165957748&amp;content_type=Article&amp;match_order=1&amp;q=%E5%85%85%E7%94%B5%E8%8A%82%E7%82%B9&amp;zd_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ6aGlkYV9zZXJ2ZXIiLCJleHAiOjE3NjEyNzYyNjUsInEiOiLlhYXnlLXoioLngrkiLCJ6aGlkYV9zb3VyY2UiOiJlbnRpdHkiLCJjb250ZW50X2lkIjoxNjU5NTc3NDgsImNvbnRlbnRfdHlwZSI6IkFydGljbGUiLCJtYXRjaF9vcmRlciI6MSwiemRfdG9rZW4iOm51bGx9.BiNXMZRm5ocPo7LibDn4XN7A2NM2YIplHY5YaWbijNk&amp;zhida_source=entity">充电节点</a>复制并替代原有的节点。其中，一半的节点对应驶入充电站时的剩余电池电量x(0%-100%)。另一半节点则对应驶出充电站时的电池电量y(0%-100%)。</p>
+<p>在驶入节点x和驶出节点y间(满足约束y&gt;x)建立新的连接边，并赋予对应的从x到y的充电时间。当一段旅途从A驶向B时需要消耗z部分的电量，那么就需要在A所有的驶出边上与B所有的驶入边上引入电量消耗边(x-z)。通过这样的转换后，就可以利用Dijkstra或A*算法来求取解决方案了。</p>
+<h1 id="5%E8%8E%B7%E5%8F%96%E8%B7%AF%E7%BA%BF%E5%92%8C%E5%8F%AF%E8%A7%86%E5%8C%96">5.获取路线和可视化</h1>
+<p>路径规划模块返回了一个包含起点终点以及充电桩的列表，我们按顺序获取两点间的具体路径。将最终路径绘制到地图上实现可视化</p>
+<h1 id="6%E8%87%AA%E5%8A%A8%E5%88%86%E9%85%8Dak%E5%BC%82%E6%AD%A5%E8%BF%90%E8%A1%8Cqps%E9%99%90%E5%88%B6%E7%AC%AC%E5%9B%9B%E4%B8%AA%E9%9A%BE%E7%82%B9">6.自动分配AK&amp;异步运行&amp;QPS限制（第四个难点）</h1>
+<p>由于http请求耗时，同时百度的api有着QPS限制，导致发送http请求占据了程序运行90%的时间，我们选择采用：多AK轮询&amp;异步运行&amp;限制QPS的策略来加速运行速度同时节约请求额度。</p>
+<h2 id="61%E5%A4%9Aak%E8%BD%AE%E8%AF%A2">6.1.多AK轮询</h2>
+<p>原因：如果一个AK的QPS是n，那10个就是10n。</p>
+<p>遇到一个需要大量相同类型http请求的任务，我们可以根据任务大小和复杂度（http请求的量和速率）拆分任务，并分配给一个或多个AK。</p>
+<h2 id="62%E5%BC%82%E6%AD%A5%E8%BF%90%E8%A1%8C">6.2.异步运行</h2>
+<p>如果同一类http请求涉及多个AK，我们可以通过异步来优化请求速率，我们利用asyncio模块，为某个任务设置统一的函数作为异步操作入口，在开始前，自动分配AK后，初始化tasks，再通过asyn和await操作异步执行tasks内的子任务。最后从入口函数退出，结束事件循环。</p>
+<h2 id="63qps%E9%99%90%E5%88%B6">6.3.QPS限制</h2>
+<p>对于某个AK，服务端限制了其QPS，为了避免额度浪费，以及无效请求的时间浪费，我们需要对某个AK进行QPS限制，设置一个中间商模块（类），统一发送异步请求，在发送请求前，先检查该AK是否符合发送条件（QPS是否在限制内）。</p>
+<h3 id="%E6%A3%80%E6%9F%A5%E6%96%B9%E6%B3%95">检查方法</h3>
+<p>我们采用令牌桶的方法检查每个AK的QPS并给出等待时间，但是这里虽然有限制，但出于各种原因，还是没能稳定控制在范围内，只能说相较于不控制的情况下稳定。</p>
+
+</body>
+</html>

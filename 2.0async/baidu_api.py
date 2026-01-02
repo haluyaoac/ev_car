@@ -58,11 +58,8 @@ baidu_api.py
 import asyncio
 from typing import List, Optional, Tuple, Dict, Any
 from time import sleep
-from qps_manner_async import fetch_json
-from config import AK
 from utils import Coord, corridor_polygon, polygon_to_bounds_str
-from qps_manner_async import fetch_json_async
-
+from ak_manner import AK
 
 # -------------------- API 封装 --------------------
 DRIVE_URL = "https://api.map.baidu.com/directionlite/v1/driving"
@@ -78,69 +75,49 @@ def _fmt_coord_bd09(lat: float, lng: float) -> str:
     return f"{lat},{lng}"
 
 
-def geocode(address, ak) -> Optional[Coord]:
+def geocode(address, ak: AK) -> Optional[Coord]:
     params = {
         "address": address,
         "output": "json",
-        "ak": ak
+        "ak": ak.get_ak(),
     }
-    data = fetch_json(GEOCODE_URL, params)
+
+    data = ak.fetch(GEOCODE_URL, params)
     if isinstance(data, dict) and data.get("status") == 0:
         loc = data["result"]["location"]
         return (loc["lat"], loc["lng"])
     return None
 
 
-def get_area(lat: float, lng: float, ak: str) -> str:
+async def get_area(lat: float, lng: float, ak: AK) -> str:
     """逆地理编码：坐标 → 行政区/城市"""
     params = {
-        "ak": ak,
+        "ak": ak.get_ak(),
         "output": "json",
         "coordtype": "wgs84ll",
         "location": f"{lat},{lng}"
     }
-    resp = fetch_json(REVERSE_GEOCODE_URL, params)
+    resp = await ak.fetch_async(REVERSE_GEOCODE_URL, params, api_type="regeo")
     if isinstance(resp, dict) and resp.get("status") == 0:
         comp = resp["result"]["addressComponent"]
         return comp.get("district") or comp.get("city")
     return None
 
 
-def get_distance(start: Coord, end: Coord) -> Optional[float]:
+def get_distance(start: Coord, end: Coord, ak: AK) -> Optional[float]:
     """获取两点间驾车距离（公里）"""
     params = {
         "origins": _fmt_coord_bd09(*start),
         "destinations": _fmt_coord_bd09(*end),
     }
-    try:
-        data = fetch_json(DISTANCE_URL, params)
-    except Exception as e:
-        print(f"[ERROR] 获取距离失败: {e}")
-        return None
+    data = ak.fetch(DISTANCE_URL, params)
+    if isinstance(data, dict) and data.get("status") == 0:
+        results = data.get("result", [])
+        if results and "distance" in results[0]:
+            return results[0]["distance"]["value"] / 1000.0
+    return None
 
-    results = data.get("result", [])
-    if results and "distance" in results[0]:
-        return results[0]["distance"]["value"] / 1000.0
-
-async def get_distances_async(origin: str, destinations: List[str]) -> List[List[float]]:
-    """
-    计算一个起点到多个终点的距离（自动分批 + 异步并发）
-    origin: "lat,lng"
-    destinations: ["lat1,lng1", "lat2,lng2", ...]
-    """
-    tasks = []
-    params = {
-        "origins": origin,
-        "destinations": "|".join(destinations),
-        "tactics": 0,  # 最短时间
-        "output": "json"
-    }
-    tasks.append(fetch_json_async("distance_matrix", DISTANCE_URL, params))
-
-    results = await asyncio.gather(*tasks)
-
-
-def get_route_polyline(start: Coord, end: Coord, ak: str) -> Optional[Dict[str, Any]]:
+async def get_route_polyline(start: Coord, end: Coord, ak: AK) -> Optional[Dict[str, Any]]:
     """
     获取驾车路线，返回：
     {
@@ -155,122 +132,69 @@ def get_route_polyline(start: Coord, end: Coord, ak: str) -> Optional[Dict[str, 
     params = {
         "origin": _fmt_coord_bd09(*start),
         "destination": _fmt_coord_bd09(*end),
-        "ak": ak,
+        "ak": ak.get_ak(),
     }
-    data = fetch_json(DRIVE_URL, params)
-    routes = data.get("result", {}).get("routes", [])
-    if not routes:
-        return None
-
-    route = routes[0]
-    steps = route.get("steps", [])
-    poly, poly_start, poly_end, poly_name, poly_distance = [], [], [], [], []
-    for seg in steps:
-        poly_name.append(seg.get("road_name", ""))
-        poly_distance.append(seg.get("distance", 0))
-        path_str = seg.get("path")
-        if not path_str:
-            continue
-        poly_start.append(len(poly))
-        for pair in path_str.split(';'):
-            try:
-                lng, lat = map(float, pair.split(','))
-                poly.append((lat, lng))
-            except ValueError:
+    data = await ak.fetch_async(DRIVE_URL, params, api_type="driving_plan")
+    if isinstance(data, dict) and data.get("status") == 0:
+        routes = data.get("result", {}).get("routes", [])       
+        route = routes[0]
+        steps = route.get("steps", [])
+        poly, poly_start, poly_end, poly_name, poly_distance = [], [], [], [], []
+        for seg in steps:
+            poly_name.append(seg.get("road_name", ""))
+            poly_distance.append(seg.get("distance", 0))
+            path_str = seg.get("path")
+            if not path_str:
                 continue
-        poly_end.append(len(poly) - 1)
+            poly_start.append(len(poly))
+            for pair in path_str.split(';'):
+                try:
+                    lng, lat = map(float, pair.split(','))
+                    poly.append((lat, lng))
+                except ValueError:
+                    continue
+            poly_end.append(len(poly) - 1)
 
-    return {
-        "polyline": poly,
-        "poly_start": poly_start,
-        "poly_end": poly_end,
-        "poly_name": poly_name,
-        "poly_distance": poly_distance,
-        "raw": data
-    }
-
-
-# ---------- POI 检索 ----------
-def search_stations_by_circle(
-    query: str,
-    center: tuple,
-    radius_m: int,
-    ak: str,
-    radius_limit: bool = False,
-    coord_type: int = 3,
-) -> List[Dict[str, Any]]:
-    """
-    使用百度地图地点检索API进行圆形区域检索
-    """
-    if not ak:
-        return []
-
-    url = PLACE_URL
-    stations = []
-    page = 0
-    page_size = 20
-
-    while True:
-        params = {
-            "query": query,
-            "location": f"{center[0]},{center[1]}",
-            "radius": int(radius_m),
-            "is_light_version": "true",
-            "radius_limit": str(radius_limit).lower(),
-            "output": "json",
-            "ak": ak,
-            "page_size": page_size,
-            "page_num": page,
-            "scope": 1,  # 返回基本信息
-            "coord_type": 3
+        return {
+            "polyline": poly,
+            "poly_start": poly_start,
+            "poly_end": poly_end,
+            "poly_name": poly_name,
+            "poly_distance": poly_distance,
+            "raw": data
         }
+    return None
 
-        data = fetch_json(url, params)
-        if not data or data.get("_error"):
-            print("[Baidu_api] 请求异常:", data.get("_error") if isinstance(data, dict) else data)
-            break
-
-        results = data.get("results", [])
-        if not results:
-            break
-
-        for item in results:
-            stations.append({
-                "uid": item.get("uid"),
-                "name": item.get("name"),
-                "lat": item.get("location", {}).get("lat"),
-                "lng": item.get("location", {}).get("lng"),
-                "address": item.get("address", ""),
-                "distance": item.get("distance"),
-            })
-
-        if len(results) < page_size:
-            break
-        page += 1
-
-    return stations
-
-
-def search_charging_stations_near(coord: Coord, radius: int = 2000) -> List[Dict]:
+async def get_distances_async(origin: str, destinations: List[str], ak: AK) -> List[List[float]]:
     """
-    调用百度POI搜索API，返回附近充电桩列表
+    计算一个起点到多个终点的距离（自动分批 + 异步并发）
+    origin: "lat,lng"
+    destinations: ["lat1,lng1", "lat2,lng2", ...]
     """
+    tasks = []
+    if destinations is None or len(destinations) == 0:
+        return []
     params = {
-        "query": "充电桩",
-        "location": f"{coord[0]},{coord[1]}",
-        "radius": radius,
-        "is_light_version": "true",
+        "origins": _fmt_coord_bd09(origin[0], origin[1]),
+        "destinations": "|".join([_fmt_coord_bd09(*pt) for pt in destinations]),
+        "tactics": 11   ,  # 最短时间
         "output": "json",
-        "scope": 2,  # 返回详细信息
-        "ak": AK,
+        "ak": ak.get_ak()
     }
-    data = fetch_json(PLACE_URL, params)
+    data = await ak.fetch_async(url=DISTANCE_URL, params=params, api_type="distance_matrix")
+    if data and data.get("status") == 0:
+        results = data.get("result", [])
+        distances = []
+        for res in results:
+            if "distance" in res:
+                distances.append(res["distance"]["value"] / 1000.0)
+            else:
+                distances.append(float('inf'))
+        return distances
+    return []
 
 
-    return data.get("results", [])
-
-
-def search_stations_in_area(lat: float, lng: float, ak: str, page_size: int = 10, page_num : int = 0, region: Optional[str] = None,limit = 7) -> List[Dict]:
+async def search_stations_in_area(lat: float, lng: float, ak: AK, page_size: int = 10, page_num : int = 0, region: Optional[str] = None,limit = 5) -> List[Dict]:
     """
     查询某个点所在行政区域的充电站列表
     :param lat: 纬度
@@ -283,10 +207,9 @@ def search_stations_in_area(lat: float, lng: float, ak: str, page_size: int = 10
     """
 
     if(not region):
-        region = get_area(lat, lng, ak)
+        region = await get_area(lat, lng, ak)
 
     # 2. 查询充电站
-    place_url = "https://api.map.baidu.com/place/v2/search"
     place_params = {
         "query": "充电站",
         "region": region,
@@ -297,9 +220,9 @@ def search_stations_in_area(lat: float, lng: float, ak: str, page_size: int = 10
         "page_size": page_size,
         "page_num": page_num,
         "output": "json",
-        "ak": ak
+        "ak": ak.get_ak()
     }
-    place_resp = fetch_json(place_url, params=place_params)
+    place_resp = await ak.fetch_async(url = PLACE_URL, params=place_params, api_type="place_search")
 
     results = []
     for poi in place_resp.get("results", []):

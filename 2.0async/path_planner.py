@@ -2,105 +2,35 @@
 from typing import Dict, List, Tuple, Optional
 import heapq
 from utils import Coord, haversine_km
-from config import CHARGE_PERCENT_STEP, A_STAR_EPS_HEURISTIC
+from config import CHARGE_PERCENT_STEP, A_STAR_EPS_HEURISTIC, STATION_POWER_KW
 
 State = Tuple[int, int]  # (node_idx, soc_percent_discrete)
 
 
 def energy_needed_percent(dist_km: float, battery_kwh: float, consumption_kwh_per_km: float) -> float:
-    """计算行驶 dist_km 所需的电量百分比（相对于电池容量）。"""
+    """计算行驶 dist_km 所需的电量百分比（相对于电池容量）。
+    consumption_kwh_per_km: 能耗 kWh/km
+    """
     need_kwh = dist_km * consumption_kwh_per_km
     return need_kwh / battery_kwh * 100.0
 
 
-def charge_time_minutes(delta_pct: float, battery_kwh: float, station_power_kw: float = 120.0) -> float:
-    """计算充电 delta_pct 所需的时间（分钟）。"""
+def energy_needed_kwh(dist_km: float, consumption_kwh_per_km: float) -> float:
+    """返回行驶 dist_km 所需能量，单位 kWh"""
+    return dist_km * consumption_kwh_per_km
+
+
+def charge_time_hours(delta_pct: float, battery_kwh: float, station_power_kw: float = STATION_POWER_KW) -> float:
+    """
+    计算充电 delta_pct 所需的时间（h）。
+    station_power_kw: 充电桩功率（kW）
+    """
     if delta_pct <= 0:
         return 0.0
     need_kwh = (delta_pct / 100.0) * battery_kwh
     base = (need_kwh / max(10.0, station_power_kw)) * 60.0
     penalty = 0.04 * delta_pct  # 简单高SOC惩罚
     return base * (1.0 + penalty / 100.0)
-
-
-def a_star_ev(points: List[Coord],                                                   # 点列表 (lat,lng)
-              adj: Dict[int, List[Tuple[int, float]]],                               # 邻接表
-              car: Dict[str, float],                                                 # 车辆参数字典  
-              start_idx: int,                                                        # 起点索引
-              end_idx: int,                                                          # 终点索引
-              start_soc: int = 100,                                                # 起始SOC%
-              station_power_kw: float = 120.0) -> Optional[Dict[str, object]]:       # 充电桩功率
-    """A* 于 (节点, SOC%) 状态空间：
-    - 驾驶消耗SOC；任意节点可按 CHARGE_PERCENT_STEP 充电；
-    - 启发式 = 直线距离/均速(分钟) * A_STAR_EPS_HEURISTIC；
-    - 动态续航剪枝：SOC 不足先充电。
-    返回 { total_time_min, path[(state, action), ...] } 或 None。
-    """
-    battery_kwh = float(car["battery_kwh"])                              # 电池容量 kWh      
-    cons = float(car["consumption_kwh_per_km"])                          # 能耗 kWh/km
-    vmax = max(30.0, float(car["avg_speed_kmph"]))                       # 平均速度 km/h
-
-    def h(node_idx: int) -> float:
-        """启发式：从 node_idx 到终点的直线距离 / 平均速度 * A_STAR_EPS_HEURISTIC"""
-        d = haversine_km(points[node_idx], points[end_idx])
-        return (d / vmax) * 60.0 * A_STAR_EPS_HEURISTIC
-
-    def norm_pct(p: float) -> int:
-        """将百分比 p 归一化到 [0, 100]，并按 CHARGE_PERCENT_STEP 步长离散化"""
-        p = max(0.0, min(100.0, p))
-        step = CHARGE_PERCENT_STEP
-        return int((p // step) * step)
-    
-    start_soc = norm_pct(start_soc)                                      # 起始SOC离散化
-    start: State = (start_idx, start_soc)                                # 起始状态 (节点索引, SOC%)
-
-    pq: List[Tuple[float, float, State]] = [(h(start_idx), 0.0, start)]  # 优先队列 (f, g, (u, soc))
-    best: Dict[State, float] = {start: 0.0}                              # 最佳已知 g 值
-    prev: Dict[State, Tuple[State, str]] = {}                            # 前驱状态与动作
-
-    while pq:
-        f, g, (u, soc) = heapq.heappop(pq)
-        if g > best.get((u, soc), float("inf")) + 1e-9:
-            continue
-        if u == end_idx:
-            path = []
-            cur = (u, soc)
-            while cur in prev:
-                path.append((cur, prev[cur][1]))
-                cur = prev[cur][0]
-            path.append((cur, "start"))
-            path.reverse()
-            return {"total_time_min": g, "path": path}
-
-        # 可达邻居（驾驶）
-        any_reachable = False
-        for v, d_km in adj.get(u, []):
-            need_pct = energy_needed_percent(d_km, battery_kwh, cons)
-            if soc + 1e-9 >= need_pct:
-                any_reachable = True
-                drive_min = (d_km / vmax) * 60.0
-                new_soc = norm_pct(soc - need_pct)
-                ng = g + drive_min
-                st = (v, new_soc)
-                if ng + 1e-9 < best.get(st, float("inf")):
-                    best[st] = ng
-                    prev[st] = ((u, soc), f"drive {u}->{v} {d_km:.1f}km {drive_min:.1f}m ΔSOC=-{need_pct:.1f}% -> {new_soc}%")
-                    heapq.heappush(pq, (ng + h(v), ng, st))
-
-        # 充电（若无可达邻居则必充；有可达也允许充以寻求更优）
-        if soc < 100:
-            for add in range(CHARGE_PERCENT_STEP, 101 - soc + 1, CHARGE_PERCENT_STEP):
-                target_soc = norm_pct(soc + add)
-                dt = charge_time_minutes(target_soc - soc, battery_kwh, station_power_kw)
-                ng = g + dt
-                st = (u, target_soc)
-                if ng + 1e-9 < best.get(st, float("inf")):
-                    best[st] = ng
-                    prev[st] = ((u, soc), f"charge {u} {soc}%→{target_soc}% {dt:.1f}m")
-                    heapq.heappush(pq, (ng + h(u), ng, st))
-
-    return None
-
 
 def dijkstra_ev(points: List[Coord],
                 adj: Dict[int, List[Tuple[int, float]]],
@@ -110,20 +40,49 @@ def dijkstra_ev(points: List[Coord],
                 start_soc: int = 100,
                 station_power_kw: float = 120.0) -> Optional[Dict[str, object]]:
     """
-    Dijkstra 于 (节点, SOC%) 状态空间：
-    - 驾驶消耗SOC；任意节点可按 CHARGE_PERCENT_STEP 充电；
-    - 优先队列按累计时间 g 排序；
-    - 动态续航剪枝：SOC 不足先充电。
-    返回 { total_time_min, path[(state, action), ...] } 或 None。
+    Dijkstra 于 (节点, SOC%) 状态空间，返回包含详细步骤与统计的结果字典：
+      {
+        "total_time_min": ...,
+        "total_driving_time_min": ...,
+        "total_charging_time_min": ...,
+        "total_energy_kwh_driving": ...,
+        "total_energy_kwh_charged": ...,
+        "path": [ { step dict }, ... ]   # 顺序从 start 到 goal
+      }
+
+    每一步的 step dict 示例（驾驶）:
+      {
+        "type": "drive",
+        "from": u,
+        "to": v,
+        "distance_km": d_km,
+        "time_min": drive_min,
+        "energy_kwh": energy_kwh,
+        "energy_pct": energy_pct,
+        "soc_before_pct": soc_before,
+        "soc_after_pct": soc_after
+      }
+
+    每一步的 step dict 示例（充电）:
+      {
+        "type": "charge",
+        "at": u,
+        "charged_pct": delta_pct,
+        "charged_kwh": charged_kwh,
+        "time_min": dt,
+        "soc_before_pct": soc_before,
+        "soc_after_pct": soc_after
+      }
     """
     battery_kwh = float(car["battery_kwh"])
     cons = float(car["consumption_kwh_per_km"])
-    vmax = max(30.0, float(car["avg_speed_kmph"]))
+    vmax = max(30.0, float(car.get("avg_speed_kmph", 50.0)))  # 保底速度
 
     def norm_pct(p: float) -> int:
-        """将百分比 p 归一化到 [0, 100]，并按 CHARGE_PERCENT_STEP 步长离散化"""
+        """将百分比 p 限制在 [0,100] 并向下取整到 CHARGE_PERCENT_STEP 的步长（离散化）"""
         p = max(0.0, min(100.0, p))
         step = CHARGE_PERCENT_STEP
+        # 向下取整到 step 的倍数
         return int((p // step) * step)
 
     start_soc = norm_pct(start_soc)
@@ -131,49 +90,104 @@ def dijkstra_ev(points: List[Coord],
 
     # 优先队列 (g, state)
     pq: List[Tuple[float, State]] = [(0.0, start)]
+    # 最佳已知 g 值
     best: Dict[State, float] = {start: 0.0}
-    prev: Dict[State, Tuple[State, str]] = {}
+    # 前驱 state 与触发动作信息： prev[state] = (prev_state, action_dict)
+    prev: Dict[State, Tuple[State, Dict]] = {}
 
     while pq:
         g, (u, soc) = heapq.heappop(pq)
         if g > best.get((u, soc), float("inf")) + 1e-9:
             continue
-        if u == end_idx:
-            # 回溯路径
-            path = []
-            cur = (u, soc)
-            while cur in prev:
-                path.append((cur, prev[cur][1]))
-                cur = prev[cur][0]
-            path.append((cur, "start"))
-            path.reverse()
-            return {"total_time_min": g, "path": path}
 
-        # 驾驶扩展
+        # 目标测试：当到达目标节点（任意 SOC）即可回溯
+        if u == end_idx:
+            # 回溯并构建详细步骤（逆序）
+            rev_steps = []
+            cur = (u, soc)
+            # 将终点本身作为结束状态（没有动作）——回溯直到 start
+            while cur in prev:
+                prev_state, action = prev[cur]
+                # action 已经是字典，表示从 prev_state 到 cur 所做的动作
+                rev_steps.append(action)
+                cur = prev_state
+            rev_steps.reverse()
+
+            # 计算总体统计
+            total_time = g
+            total_driving_time = sum(s.get("time_min", 0.0) for s in rev_steps if s["type"] == "drive")
+            total_charging_time = sum(s.get("time_min", 0.0) for s in rev_steps if s["type"] == "charge")
+            total_energy_driving = sum(s.get("energy_kwh", 0.0) for s in rev_steps if s["type"] == "drive")
+            total_energy_charged = sum(s.get("charged_kwh", 0.0) for s in rev_steps if s["type"] == "charge")
+
+            return {
+                "total_time_min": total_time,
+                "total_driving_time_min": total_driving_time,
+                "total_charging_time_min": total_charging_time,
+                "total_energy_kwh_driving": total_energy_driving,
+                "total_energy_kwh_charged": total_energy_charged,
+                "path": rev_steps
+            }
+
+        # 驾驶扩展：尝试去相邻节点
         for v, d_km in adj.get(u, []):
+            # 当前驱动需要的电量（% 和 kWh）
             need_pct = energy_needed_percent(d_km, battery_kwh, cons)
+            need_kwh = energy_needed_kwh(d_km, cons)
+            # 只有当当前 SOC 足够时才直接驾驶
             if soc + 1e-9 >= need_pct:
                 drive_min = (d_km / vmax) * 60.0
-                new_soc = norm_pct(soc - need_pct)
+                new_soc_f = max(0.0, soc - need_pct)
+                new_soc = norm_pct(new_soc_f)
                 ng = g + drive_min
                 st = (v, new_soc)
                 if ng + 1e-9 < best.get(st, float("inf")):
                     best[st] = ng
-                    prev[st] = ((u, soc),
-                                f"drive {u}->{v} {d_km:.1f}km {drive_min:.1f}m ΔSOC=-{need_pct:.1f}% -> {new_soc}%")
+                    action = {
+                        "type": "drive",
+                        "from": u,
+                        "to": v,
+                        "distance_km": float(d_km),
+                        "time_min": float(drive_min),
+                        "energy_kwh": float(need_kwh),
+                        "energy_pct": float(need_pct),
+                        "soc_before_pct": int(soc),
+                        "soc_after_pct": int(new_soc)
+                    }
+                    prev[st] = ((u, soc), action)
                     heapq.heappush(pq, (ng, st))
 
-        # 充电扩展
+        # 充电扩展：如果 SOC < 100，枚举可充到的离散目标 SOC
         if soc < 100:
-            for add in range(CHARGE_PERCENT_STEP, 101 - soc + 1, CHARGE_PERCENT_STEP):
-                target_soc = norm_pct(soc + add)
-                dt = charge_time_minutes(target_soc - soc, battery_kwh, station_power_kw)
+            # add 表示增加的百分比（按步长枚举到 100）
+            # range 的上限写成 100 - soc + 1 以便包含恰好到 100 的情况
+            for add in range(CHARGE_PERCENT_STEP, 100 - soc + 1, CHARGE_PERCENT_STEP):
+                target = soc + add
+                target_soc = norm_pct(target)
+                # 实际增量（离散化后可能小于 add，因为 norm_pct 向下）
+                delta_pct = target_soc - soc
+                if delta_pct <= 0:
+                    # 如果离散化后没有增长（应该很少发生），跳过
+                    continue
+                dt = charge_time_hours(delta_pct, battery_kwh, station_power_kw)
                 ng = g + dt
                 st = (u, target_soc)
                 if ng + 1e-9 < best.get(st, float("inf")):
                     best[st] = ng
-                    prev[st] = ((u, soc), f"charge {u} {soc}%→{target_soc}% {dt:.1f}m")
+                    charged_kwh = (delta_pct / 100.0) * battery_kwh
+                    action = {
+                        "type": "charge",
+                        "at": u,
+                        "charged_pct": int(delta_pct),
+                        "charged_kwh": float(charged_kwh),
+                        "time_min": float(dt),
+                        "soc_before_pct": int(soc),
+                        "soc_after_pct": int(target_soc)
+                    }
+                    prev[st] = ((u, soc), action)
                     heapq.heappush(pq, (ng, st))
 
+    # 未找到路径
     return None
+
 
